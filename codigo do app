@@ -23,7 +23,6 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   List<Task> tasks = [];
   List<Task> completedTasks = [];
-  bool isDarkMode = false;
 
   final TextEditingController _controller = TextEditingController();
   DateTime? _selectedDateTime;
@@ -41,12 +40,6 @@ class _MyAppState extends State<MyApp> {
       tasks[index].isCompleted = true;
       completedTasks.add(tasks[index]);
       tasks.removeAt(index);
-    });
-  }
-
-  void _toggleTheme() {
-    setState(() {
-      isDarkMode = !isDarkMode;
     });
   }
 
@@ -97,18 +90,11 @@ class _MyAppState extends State<MyApp> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Agenda de Tarefas'),
-        actions: [
-          IconButton(
-            icon: Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode),
-            onPressed: _toggleTheme,
-          ),
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Campo de texto, botão calendário e botão adicionar
             Row(
               children: [
                 Expanded(
@@ -137,7 +123,6 @@ class _MyAppState extends State<MyApp> {
                 ),
               ],
             ),
-
             if (_selectedDateTime != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
@@ -146,10 +131,7 @@ class _MyAppState extends State<MyApp> {
                   style: TextStyle(color: Colors.blueGrey),
                 ),
               ),
-
             SizedBox(height: 20),
-
-            // Lista de tarefas pendentes
             Expanded(
               child: ListView.builder(
                 itemCount: tasks.length,
@@ -169,7 +151,6 @@ class _MyAppState extends State<MyApp> {
                 },
               ),
             ),
-
             SizedBox(height: 20),
             Text(
               'Tarefas Concluídas',
@@ -201,3 +182,4 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
+
