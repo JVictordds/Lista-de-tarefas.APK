@@ -43,6 +43,37 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  void _removeCompletedTask(int index) {
+    setState(() {
+      completedTasks.removeAt(index);
+    });
+  }
+
+  void _clearAllCompletedTasks() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Limpar tarefas concluídas'),
+        content: Text('Tem certeza que deseja excluir todas as tarefas concluídas?'),
+        actions: [
+          TextButton(
+            child: Text('Cancelar'),
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+          TextButton(
+            child: Text('Confirmar'),
+            onPressed: () {
+              setState(() {
+                completedTasks.clear();
+              });
+              Navigator.of(ctx).pop();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _selectDateTime(BuildContext context) async {
     try {
       final DateTime? pickedDate = await showDatePicker(
@@ -81,7 +112,7 @@ class _MyAppState extends State<MyApp> {
     return '${dateTime.day.toString().padLeft(2, '0')}/'
         '${dateTime.month.toString().padLeft(2, '0')}/'
         '${dateTime.year} '
-        '${dateTime.hour.toString().padLeft(2, '0')}:' 
+        '${dateTime.hour.toString().padLeft(2, '0')}:'
         '${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
@@ -90,11 +121,20 @@ class _MyAppState extends State<MyApp> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Agenda de Tarefas'),
+        actions: [
+          if (completedTasks.isNotEmpty)
+            IconButton(
+              icon: Icon(Icons.delete_sweep),
+              tooltip: 'Limpar todas as concluídas',
+              onPressed: _clearAllCompletedTasks,
+            ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
+            // Campo de texto + botões
             Row(
               children: [
                 Expanded(
@@ -205,6 +245,11 @@ class _MyAppState extends State<MyApp> {
                       subtitle: task.dateTime != null
                           ? Text('Concluída: ${_formatDateTime(task.dateTime!)}')
                           : null,
+                      trailing: IconButton(
+                        icon: Icon(Icons.delete_outline, color: Colors.red),
+                        tooltip: 'Excluir tarefa',
+                        onPressed: () => _removeCompletedTask(index),
+                      ),
                     ),
                   );
                 },
