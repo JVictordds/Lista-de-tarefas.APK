@@ -27,7 +27,6 @@ class _MyAppState extends State<MyApp> {
   final TextEditingController _controller = TextEditingController();
   DateTime? _selectedDateTime;
 
-  // Keys para AnimatedList
   final GlobalKey<AnimatedListState> _pendingListKey = GlobalKey<AnimatedListState>();
   final GlobalKey<AnimatedListState> _completedListKey = GlobalKey<AnimatedListState>();
 
@@ -91,15 +90,23 @@ class _MyAppState extends State<MyApp> {
           TextButton(
             child: Text('Confirmar'),
             onPressed: () {
-              // Removendo com animação um a um
-              for (int i = completedTasks.length - 1; i >= 0; i--) {
-                _completedListKey.currentState?.removeItem(
-                  i,
-                  (context, animation) => _buildTaskItem(completedTasks[i], animation, true),
-                );
-              }
-              completedTasks.clear();
               Navigator.of(ctx).pop();
+
+              // Copiando a lista para evitar erro de modificação durante iteração
+              final tasksToRemove = List<Task>.from(completedTasks);
+
+              for (int i = tasksToRemove.length - 1; i >= 0; i--) {
+                final task = tasksToRemove[i];
+                final index = completedTasks.indexOf(task);
+
+                if (index != -1) {
+                  _completedListKey.currentState?.removeItem(
+                    index,
+                    (context, animation) => _buildTaskItem(task, animation, true),
+                  );
+                  completedTasks.removeAt(index);
+                }
+              }
             },
           ),
         ],
@@ -145,7 +152,7 @@ class _MyAppState extends State<MyApp> {
     return '${dateTime.day.toString().padLeft(2, '0')}/'
         '${dateTime.month.toString().padLeft(2, '0')}/'
         '${dateTime.year} '
-        '${dateTime.hour.toString().padLeft(2, '0')}:'
+        '${dateTime.hour.toString().padLeft(2, '0')}:' 
         '${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
@@ -223,7 +230,6 @@ class _MyAppState extends State<MyApp> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Campo de texto + botões
             Row(
               children: [
                 Expanded(
@@ -262,7 +268,6 @@ class _MyAppState extends State<MyApp> {
               ),
             SizedBox(height: 20),
 
-            // Lista de tarefas pendentes animada
             Expanded(
               child: AnimatedList(
                 key: _pendingListKey,
@@ -280,7 +285,6 @@ class _MyAppState extends State<MyApp> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
 
-            // Lista de tarefas concluídas animada
             Expanded(
               child: AnimatedList(
                 key: _completedListKey,
