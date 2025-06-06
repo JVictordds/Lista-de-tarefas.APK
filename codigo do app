@@ -27,25 +27,53 @@ class _MyAppState extends State<MyApp> {
   final TextEditingController _controller = TextEditingController();
   DateTime? _selectedDateTime;
 
+  // Keys para AnimatedList
+  final GlobalKey<AnimatedListState> _pendingListKey = GlobalKey<AnimatedListState>();
+  final GlobalKey<AnimatedListState> _completedListKey = GlobalKey<AnimatedListState>();
+
   void _addTask(String taskTitle) {
+    final newTask = Task(title: taskTitle, dateTime: _selectedDateTime);
     setState(() {
-      tasks.add(Task(title: taskTitle, dateTime: _selectedDateTime));
+      tasks.insert(0, newTask);
       _controller.clear();
       _selectedDateTime = null;
     });
+    _pendingListKey.currentState?.insertItem(0);
   }
 
   void _markTaskAsCompleted(int index) {
+    final task = tasks[index];
     setState(() {
-      tasks[index].isCompleted = true;
-      completedTasks.add(tasks[index]);
       tasks.removeAt(index);
+      _pendingListKey.currentState?.removeItem(
+        index,
+        (context, animation) => _buildTaskItem(task, animation, false),
+      );
+      task.isCompleted = true;
+      completedTasks.insert(0, task);
+      _completedListKey.currentState?.insertItem(0);
+    });
+  }
+
+  void _removePendingTask(int index) {
+    final removedTask = tasks[index];
+    setState(() {
+      tasks.removeAt(index);
+      _pendingListKey.currentState?.removeItem(
+        index,
+        (context, animation) => _buildTaskItem(removedTask, animation, false),
+      );
     });
   }
 
   void _removeCompletedTask(int index) {
+    final removedTask = completedTasks[index];
     setState(() {
       completedTasks.removeAt(index);
+      _completedListKey.currentState?.removeItem(
+        index,
+        (context, animation) => _buildTaskItem(removedTask, animation, true),
+      );
     });
   }
 
@@ -63,9 +91,14 @@ class _MyAppState extends State<MyApp> {
           TextButton(
             child: Text('Confirmar'),
             onPressed: () {
-              setState(() {
-                completedTasks.clear();
-              });
+              // Removendo com animação um a um
+              for (int i = completedTasks.length - 1; i >= 0; i--) {
+                _completedListKey.currentState?.removeItem(
+                  i,
+                  (context, animation) => _buildTaskItem(completedTasks[i], animation, true),
+                );
+              }
+              completedTasks.clear();
               Navigator.of(ctx).pop();
             },
           ),
@@ -114,6 +147,62 @@ class _MyAppState extends State<MyApp> {
         '${dateTime.year} '
         '${dateTime.hour.toString().padLeft(2, '0')}:'
         '${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  Widget _buildTaskItem(Task task, Animation<double> animation, bool isCompletedList) {
+    return SizeTransition(
+      sizeFactor: animation,
+      child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        elevation: isCompletedList ? 2 : 3,
+        margin: EdgeInsets.symmetric(vertical: 6),
+        color: isCompletedList ? Colors.grey[200] : null,
+        child: ListTile(
+          title: Text(
+            task.title,
+            style: TextStyle(
+              decoration: isCompletedList ? TextDecoration.lineThrough : TextDecoration.none,
+              color: isCompletedList ? Colors.grey[600] : null,
+            ),
+          ),
+          subtitle: task.dateTime != null
+              ? Text('${isCompletedList ? 'Concluída:' : 'Para:'} ${_formatDateTime(task.dateTime!)}')
+              : null,
+          trailing: isCompletedList
+              ? IconButton(
+                  icon: Icon(Icons.delete_outline, color: Colors.red),
+                  tooltip: 'Excluir tarefa',
+                  onPressed: () {
+                    final index = completedTasks.indexOf(task);
+                    if (index != -1) _removeCompletedTask(index);
+                  },
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.check_circle, color: Colors.green),
+                      tooltip: 'Marcar como concluída',
+                      onPressed: () {
+                        final index = tasks.indexOf(task);
+                        if (index != -1) _markTaskAsCompleted(index);
+                      },
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.delete, color: Colors.red),
+                      tooltip: 'Excluir',
+                      onPressed: () {
+                        final index = tasks.indexOf(task);
+                        if (index != -1) _removePendingTask(index);
+                      },
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -173,44 +262,14 @@ class _MyAppState extends State<MyApp> {
               ),
             SizedBox(height: 20),
 
-            // Lista de tarefas pendentes
+            // Lista de tarefas pendentes animada
             Expanded(
-              child: ListView.builder(
-                itemCount: tasks.length,
-                itemBuilder: (context, index) {
+              child: AnimatedList(
+                key: _pendingListKey,
+                initialItemCount: tasks.length,
+                itemBuilder: (context, index, animation) {
                   final task = tasks[index];
-                  return Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    elevation: 3,
-                    margin: EdgeInsets.symmetric(vertical: 6),
-                    child: ListTile(
-                      title: Text(task.title),
-                      subtitle: task.dateTime != null
-                          ? Text('Para: ${_formatDateTime(task.dateTime!)}')
-                          : null,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.check_circle, color: Colors.green),
-                            tooltip: 'Marcar como concluída',
-                            onPressed: () => _markTaskAsCompleted(index),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.delete, color: Colors.red),
-                            tooltip: 'Excluir',
-                            onPressed: () {
-                              setState(() {
-                                tasks.removeAt(index);
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
+                  return _buildTaskItem(task, animation, false);
                 },
               ),
             ),
@@ -221,37 +280,14 @@ class _MyAppState extends State<MyApp> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
 
-            // Lista de tarefas concluídas
+            // Lista de tarefas concluídas animada
             Expanded(
-              child: ListView.builder(
-                itemCount: completedTasks.length,
-                itemBuilder: (context, index) {
+              child: AnimatedList(
+                key: _completedListKey,
+                initialItemCount: completedTasks.length,
+                itemBuilder: (context, index, animation) {
                   final task = completedTasks[index];
-                  return Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    elevation: 2,
-                    margin: EdgeInsets.symmetric(vertical: 6),
-                    color: Colors.grey[200],
-                    child: ListTile(
-                      title: Text(
-                        task.title,
-                        style: TextStyle(
-                          decoration: TextDecoration.lineThrough,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      subtitle: task.dateTime != null
-                          ? Text('Concluída: ${_formatDateTime(task.dateTime!)}')
-                          : null,
-                      trailing: IconButton(
-                        icon: Icon(Icons.delete_outline, color: Colors.red),
-                        tooltip: 'Excluir tarefa',
-                        onPressed: () => _removeCompletedTask(index),
-                      ),
-                    ),
-                  );
+                  return _buildTaskItem(task, animation, true);
                 },
               ),
             ),
